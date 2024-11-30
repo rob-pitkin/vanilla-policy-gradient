@@ -4,26 +4,49 @@ import torch.optim as optim
 import numpy as np
 from typing import Any, List
 from collections import deque
+from gymnasium import Env
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self):
+    """
+    A simple feedforward neural network for the policy
+
+    Attributes:
+        state_dim (int): the dimension of the state space
+        hidden_dim (int): the dimension of the hidden layer
+        action_dim (int): the dimension of the action space
+        ff1 (nn.Linear): the first feedforward layer
+        ff2 (nn.Linear): the second feedforward layer
+        activation (nn.ReLU): the activation function
+        softmax (nn.Softmax): the softmax function
+    """
+
+    def __init__(self, state_dim: int = 4, hidden_dim: int = 128, action_dim: int = 2):
         super(PolicyNetwork, self).__init__()
-        self.state_dim = 4
-        self.hidden_dim = 128
-        self.action_dim = 2
+        self.state_dim = state_dim
+        self.hidden_dim = hidden_dim
+        self.action_dim = action_dim
         self.ff1 = nn.Linear(self.state_dim, self.hidden_dim)
         self.ff2 = nn.Linear(self.hidden_dim, self.action_dim)
         self.activation = nn.ReLU()
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the policy network
+
+        Args:
+            x (torch.tensor): the input state
+
+        Returns:
+            torch.Tensor: the output probabilities of the actions
+        """
         x = self.ff1(x)
         x = self.activation(x)
         x = self.ff2(x)
         return self.softmax(x)
 
-    def select_action(self, state) -> (int, Any):
+    def select_action(self, state: torch.Tensor) -> (int, torch.Tensor):
         """
         Selects an action given the current state
 
@@ -41,17 +64,37 @@ class PolicyNetwork(nn.Module):
 
 
 class BaselineNetwork(nn.Module):
-    def __init__(self, discount_factor=1.0):
+    """
+    A simple feedforward neural network for baseline estimation
+
+    Attributes:
+        state_dim (int): the dimension of the state space
+        hidden_dim (int): the dimension of the hidden layer
+        value_dim (int): the dimension of the value space
+        ff1 (nn.Linear): the first feedforward layer
+        ff2 (nn.Linear): the second feedforward layer
+        activation (nn.ReLU): the activation function
+    """
+
+    def __init__(self, state_dim: int = 4, hidden_dim: int = 128, value_dim: int = 1):
         super(BaselineNetwork, self).__init__()
-        self.state_dim = 4
-        self.value_dim = 1
-        self.hidden_dim = 128
+        self.state_dim = state_dim
+        self.value_dim = value_dim
+        self.hidden_dim = hidden_dim
         self.ff1 = nn.Linear(self.state_dim, self.hidden_dim)
         self.ff2 = nn.Linear(self.hidden_dim, self.value_dim)
         self.activation = nn.ReLU()
-        self.discount_factor = discount_factor
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
+        """
+        Forward pass of the baseline network
+
+        Args:
+            x (torch.tensor): the input state
+
+        Returns:
+            torch.Tensor: the value of the state
+        """
         x = self.ff1(x)
         x = self.activation(x)
         x = self.ff2(x)
@@ -59,13 +102,25 @@ class BaselineNetwork(nn.Module):
 
 
 class PolicyGradientAgent:
-    def __init__(self, discount_factor=0.99):
+    """
+    Vanilla policy gradient agent with a value function baseline estimation
+
+    Attributes:
+        policy (PolicyNetwork): the policy network
+        baseline (BaselineNetwork): the baseline network
+        learning_rate (float): the learning rate
+        discount_factor (float): the discount factor
+    """
+
+    def __init__(self, learning_rate: float = 1e-4, discount_factor: float = 0.99):
         self.policy = PolicyNetwork()
         self.baseline = BaselineNetwork()
-        self.learning_rate = 1e-4
+        self.learning_rate = learning_rate
         self.discount_factor = discount_factor
 
-    def calculate_return(self, rewards: List, discount_factor: float) -> List:
+    def calculate_return(
+        self, rewards: List[float], discount_factor: float
+    ) -> List[float]:
         """
         Calculates the discounted returns from a list of rewards
 
@@ -74,7 +129,7 @@ class PolicyGradientAgent:
             discount_factor (float): The discount factor
 
         Returns:
-            torch.Tensor: a list of discounted returns
+            List: a list of discounted returns
         """
         returns = deque()
         running_return = 0
@@ -83,7 +138,20 @@ class PolicyGradientAgent:
             returns.appendleft(running_return)
         return list(returns)
 
-    def calculate_policy_loss(self, log_probs, returns, baseline_values):
+    def calculate_policy_loss(
+        self, log_probs: List[float], returns: List[float], baseline_values: List[float]
+    ) -> torch.Tensor:
+        """
+        Calculates the policy loss
+
+        Args:
+            log_probs (List): the log probabilities of the actions
+            returns (List): the returns from the episode
+            baseline_values (List): the baseline values
+
+        Returns:
+            torch.Tensor: the policy loss
+        """
         loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
         for log_prob, r, b in zip(
             torch.tensor(log_probs, dtype=torch.float32),
@@ -93,13 +161,36 @@ class PolicyGradientAgent:
             loss = loss - log_prob * (r - b)
         return loss
 
-    def calculate_baseline_loss(self, returns, baseline_values):
+    def calculate_baseline_loss(
+        self, returns: List[float], baseline_values: List[float]
+    ) -> torch.Tensor:
+        """
+        Calculates the baseline loss
+
+        Args:
+            returns (List): the returns from the episode
+            baseline_values (List): the baseline values
+
+        Returns:
+            torch.Tensor: the baseline loss
+        """
         loss_fn = nn.MSELoss()
         b = torch.tensor(baseline_values, dtype=torch.float32)
         r = torch.tensor(returns, dtype=torch.float32)
         return loss_fn(b, r).requires_grad_(True)
 
-    def train(self, env, num_episodes):
+    def train(self, env: Env, num_episodes: int, verbose: bool = False) -> None:
+        """
+        Trains the agent on an environment
+
+        Args:
+            env (gym.Env): the environment to train on
+            num_episodes (int): the number of episodes to train for
+            verbose (bool): whether to print progress
+
+        Returns:
+            None
+        """
         policy_optim = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
         baseline_optim = optim.Adam(self.baseline.parameters(), lr=self.learning_rate)
 
@@ -147,12 +238,23 @@ class PolicyGradientAgent:
             baseline_optim.step()
 
             # Print progress every 10000 episodes
-            if i % 10000 == 0:
-                print(
-                    f"Episode {i}/{num_episodes}, Policy Loss: {policy_loss.item()}, Baseline Loss: {baseline_loss.item()}"
-                )
+            if verbose:
+                if i % 1000 == 0:
+                    print(
+                        f"Episode {i}/{num_episodes}, Policy Loss: {policy_loss.item()}, Baseline Loss: {baseline_loss.item()}"
+                    )
 
-    def evaluate_agent(self, env, num_episodes):
+    def evaluate_agent(self, env: Env, num_episodes: int) -> None:
+        """
+        Evaluates the agent on an environment
+
+        Args:
+            env (gym.Env): the environment to evaluate on
+            num_episodes (int): the number of episodes to evaluate for
+
+        Returns:
+            None
+        """
         with torch.no_grad():
             total_rewards = 0
             for _ in range(num_episodes):
