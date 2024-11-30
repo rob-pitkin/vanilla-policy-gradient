@@ -24,18 +24,20 @@ def testCartPole():
 
 
 class TestPolicyGradientAgent(unittest.TestCase):
-    def testAgentForward(self):
+    def testPolicyNetworkForward(self):
         agent = PolicyGradientAgent()
         env = gym.make("CartPole-v1")
         obs, info = env.reset()
-        out = agent.forward(torch.tensor(obs))
-        print(out)
+        out = agent.policy.forward(torch.tensor(obs))
+        print(f"Example forward from policy network: {out}")
         self.assertTrue(sum(out) == 1.0)
 
     def testCalculateReturn(self):
         rewards = [i for i in range(10)]
-        expected_return = [55, 54, 52, 49, 45, 40, 34, 27, 19, 10]
-        returns = Agent.calculate_return(rewards, 1.0)
+        expected_return = [45, 45, 44, 42, 39, 35, 30, 24, 17, 9]
+        agent = PolicyGradientAgent()
+        returns = agent.calculate_return(rewards, 1.0)
+        print(returns)
         for i, r in enumerate(returns):
             self.assertTrue(expected_return[i] == r)
 

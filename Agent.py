@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from typing import Any
+from typing import Any, List
 from collections import deque
 
 
@@ -81,19 +81,21 @@ class PolicyGradientAgent:
         for i, r in enumerate(reversed(rewards)):
             running_return += r * (discount_factor**i)
             returns.appendleft(running_return)
-        return torch.tensor(returns)
+        return list(returns)
 
     def calculate_policy_loss(self, log_probs, returns, baseline_values):
         loss = 0
         for log_prob, r, b in zip(
-            torch.tensor(log_probs), returns, torch.tensor(baseline_values)
+            torch.tensor(log_probs),
+            torch.tensor(returns),
+            torch.tensor(baseline_values),
         ):
             loss -= log_prob * (r - b)
         return loss
 
     def calculate_baseline_loss(self, returns, baseline_values):
         loss = nn.MSELoss()
-        return loss(torch.tensor(baseline_values), returns)
+        return loss(torch.tensor(baseline_values), torch.tensor(returns))
 
     def train(self, env, num_episodes):
         policy_optim = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
