@@ -86,16 +86,19 @@ class PolicyGradientAgent:
     def calculate_policy_loss(self, log_probs, returns, baseline_values):
         loss = 0
         for log_prob, r, b in zip(
-            torch.tensor(log_probs),
-            torch.tensor(returns),
-            torch.tensor(baseline_values),
+            torch.tensor(log_probs, dtype=torch.float32),
+            torch.tensor(returns, dtype=torch.float32),
+            torch.tensor(baseline_values, dtype=torch.float32),
         ):
             loss -= log_prob * (r - b)
         return loss
 
     def calculate_baseline_loss(self, returns, baseline_values):
-        loss = nn.MSELoss()
-        return loss(torch.tensor(baseline_values), torch.tensor(returns))
+        loss = nn.MSELoss(reduction="sum")
+        return -loss(
+            torch.tensor(baseline_values, dtype=torch.float32),
+            torch.tensor(returns, dtype=torch.float32),
+        )
 
     def train(self, env, num_episodes):
         policy_optim = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
@@ -113,7 +116,7 @@ class PolicyGradientAgent:
 
             while not episode_over:
                 # Forward passes of the policy and baseline network
-                state = torch.tensor(obs)
+                state = torch.tensor(obs, dtype=torch.float32)
                 action, log_prob = self.policy.select_action(state)
                 baseline_value = self.baseline.forward(state)
 
@@ -157,7 +160,7 @@ class PolicyGradientAgent:
                 obs, info = env.reset()
                 episode_over = False
                 while not episode_over:
-                    state = torch.tensor(obs)
+                    state = torch.tensor(obs, dtype=torch.float32)
                     action, _ = self.policy.select_action(state)
                     obs, reward, terminated, truncated, info = env.step(action)
                     total_rewards += reward
