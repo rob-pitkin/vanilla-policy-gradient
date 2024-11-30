@@ -10,7 +10,7 @@ class PolicyNetwork(nn.Module):
     def __init__(self):
         super(PolicyNetwork, self).__init__()
         self.state_dim = 4
-        self.hidden_dim = 64
+        self.hidden_dim = 128
         self.action_dim = 2
         self.ff1 = nn.Linear(self.state_dim, self.hidden_dim)
         self.ff2 = nn.Linear(self.hidden_dim, self.action_dim)
@@ -28,17 +28,16 @@ class PolicyNetwork(nn.Module):
         Selects an action given the current state
 
         Args:
-            state (np.ndarray): the current state
+            state (torch.tensor): the current state
 
         Returns:
             int: the action to take
             torch.Tensor: the log probability of the action
         """
-        input_tensor = torch.tensor(state, dtype=torch.float32)
-        output_probs = self.forward(input_tensor)
+        output_probs = self.forward(state)
         dist = torch.distributions.Categorical(output_probs)
         action = dist.sample()
-        return action.item(), distribution.log_prob(action)
+        return action.item(), dist.log_prob(action)
 
 
 class BaselineNetwork(nn.Module):
@@ -46,7 +45,7 @@ class BaselineNetwork(nn.Module):
         super(BaselineNetwork, self).__init__()
         self.state_dim = 4
         self.value_dim = 1
-        self.hidden_dim = 64
+        self.hidden_dim = 128
         self.ff1 = nn.Linear(self.state_dim, self.hidden_dim)
         self.ff2 = nn.Linear(self.hidden_dim, self.value_dim)
         self.activation = nn.ReLU()
@@ -60,10 +59,11 @@ class BaselineNetwork(nn.Module):
 
 
 class PolicyGradientAgent:
-    def __init__(self):
+    def __init__(self, discount_factor=0.99):
         self.policy = PolicyNetwork()
         self.baseline = BaselineNetwork()
         self.learning_rate = 1e-4
+        self.discount_factor = discount_factor
 
     def calculate_return(self, rewards: List, discount_factor: float) -> List:
         """
@@ -84,21 +84,20 @@ class PolicyGradientAgent:
         return list(returns)
 
     def calculate_policy_loss(self, log_probs, returns, baseline_values):
-        loss = 0
+        loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
         for log_prob, r, b in zip(
             torch.tensor(log_probs, dtype=torch.float32),
             torch.tensor(returns, dtype=torch.float32),
             torch.tensor(baseline_values, dtype=torch.float32),
         ):
-            loss -= log_prob * (r - b)
+            loss = loss - log_prob * (r - b)
         return loss
 
     def calculate_baseline_loss(self, returns, baseline_values):
-        loss = nn.MSELoss(reduction="sum")
-        return -loss(
-            torch.tensor(baseline_values, dtype=torch.float32),
-            torch.tensor(returns, dtype=torch.float32),
-        )
+        loss_fn = nn.MSELoss()
+        b = torch.tensor(baseline_values, dtype=torch.float32)
+        r = torch.tensor(returns, dtype=torch.float32)
+        return loss_fn(b, r).requires_grad_(True)
 
     def train(self, env, num_episodes):
         policy_optim = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
@@ -147,8 +146,8 @@ class PolicyGradientAgent:
             baseline_loss.backward()
             baseline_optim.step()
 
-            # Print progress every 100 episodes
-            if i % 100 == 0:
+            # Print progress every 10000 episodes
+            if i % 10000 == 0:
                 print(
                     f"Episode {i}/{num_episodes}, Policy Loss: {policy_loss.item()}, Baseline Loss: {baseline_loss.item()}"
                 )
@@ -164,6 +163,7 @@ class PolicyGradientAgent:
                     action, _ = self.policy.select_action(state)
                     obs, reward, terminated, truncated, info = env.step(action)
                     total_rewards += reward
+                    episode_over = terminated or truncated
             print(
                 f"Average reward after {num_episodes} episodes: {total_rewards / num_episodes}"
             )

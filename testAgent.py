@@ -38,7 +38,6 @@ class TestPolicyGradientAgent(unittest.TestCase):
         rewards = [i for i in range(10)]
         expected_return = [45, 45, 44, 42, 39, 35, 30, 24, 17, 9]
         returns = self.agent.calculate_return(rewards, 1.0)
-        print(returns)
         for i, r in enumerate(returns):
             self.assertAlmostEqual(expected_return[i], r)
 
@@ -60,6 +59,7 @@ class TestPolicyGradientAgent(unittest.TestCase):
         expected_loss = 0
         for i in range(3):
             expected_loss -= (baseline_values[i] - returns[i]) ** 2
+        expected_loss /= 3
         baseline_loss = self.agent.calculate_baseline_loss(returns, baseline_values)
         self.assertAlmostEqual(baseline_loss.item(), expected_loss, places=5)
 
