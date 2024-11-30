@@ -1,5 +1,6 @@
 import gymnasium as gym
 import torch
+import Agent
 from Agent import PolicyGradientAgent
 import unittest
 
@@ -30,6 +31,13 @@ class TestPolicyGradientAgent(unittest.TestCase):
         out = agent.forward(torch.tensor(obs))
         print(out)
         self.assertTrue(sum(out) == 1.0)
+
+    def testCalculateReturn(self):
+        rewards = [i for i in range(10)]
+        expected_return = [55, 54, 52, 49, 45, 40, 34, 27, 19, 10]
+        returns = Agent.calculate_return(rewards, 1.0)
+        for i, r in enumerate(returns):
+            self.assertTrue(expected_return[i] == r)
 
 
 def main():
