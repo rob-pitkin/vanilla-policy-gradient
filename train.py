@@ -1,4 +1,4 @@
-from agent import PolicyGradientAgent
+from policyGradientAgent import PolicyGradientAgent
 import gymnasium as gym
 import argparse
 
