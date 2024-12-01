@@ -3,7 +3,7 @@
 
 
 ## Installation
-```conda env create --name <name> -f requirements.txt```
+```conda env create --name <name> -f environment.yml```
 
 ```conda activate <name>```
 
