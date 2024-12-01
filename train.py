@@ -4,6 +4,7 @@ import gymnasium as gym
 
 
 def main():
+    # TODO: add argparse to allow for command line arguments
     env = gym.make("CartPole-v1")
     num_episodes = 100000
     agent = PolicyGradientAgent()
