@@ -24,7 +24,7 @@ The Agent.py module can also be used independently.
 - `--action_dim`, `-ad`: Dimension of the action space (default: `2`)
 - `--hidden_dim`, `-hd`: Dimension of the hidden layer (default: `64`)
 - `--num_hidden_layers`, `-hl`: Number of hidden layers (default: `0`)
-- `--activation`, `-a`: Activation function (default: `relu`)
+- `--activation`, `-a`: Activation function (default: `relu`) (options: `relu`, `tanh`)
 - `--shared`, `-s`: Use shared weights for policy and value function (default: `False`)
 
 ## Notes
