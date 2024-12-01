@@ -8,7 +8,12 @@
 ```conda activate <name>```
 
 ## Usage
+To train the agent and visualize the results, run the following command:
+```python train.py```
+or with custom arguments:
 ```python train.py --env CartPole-v1 --gamma 0.999 --learning_rate 0.001 --episodes 2000 --state_dim 4 --action_dim 2 --hidden_dim 64 --num_hidden_layers 0 --activation relu --shared False```
+
+The Agent.py module can also be used independently.
 
 ### Command Line Arguments
 - `--env`: Name of the environment (default: `CartPole-v1`)
