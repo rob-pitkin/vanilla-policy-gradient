@@ -416,7 +416,7 @@ class PolicyGradientAgent:
                 baseline_loss.backward()
                 baseline_optim.step()
 
-            # Print progress every 10000 episodes
+            # Print progress every 1000 episodes
             if verbose:
                 if i % 1000 == 0:
                     print(

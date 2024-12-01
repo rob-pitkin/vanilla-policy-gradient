@@ -1,7 +1,7 @@
 import gymnasium as gym
 import torch
-import Agent
-from Agent import PolicyGradientAgent
+import agent
+from agent import PolicyGradientAgent
 import unittest
 
 
