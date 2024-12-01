@@ -112,7 +112,7 @@ class PolicyGradientAgent:
         discount_factor (float): the discount factor
     """
 
-    def __init__(self, learning_rate: float = 1e-4, discount_factor: float = 0.99):
+    def __init__(self, learning_rate: float = 1e-3, discount_factor: float = 0.999):
         self.policy = PolicyNetwork()
         self.baseline = BaselineNetwork()
         self.learning_rate = learning_rate
@@ -129,55 +129,50 @@ class PolicyGradientAgent:
             discount_factor (float): The discount factor
 
         Returns:
-            List: a list of discounted returns
+            torch.Tensor: a tensor of discounted returns
         """
         returns = deque()
         running_return = 0
         for i, r in enumerate(reversed(rewards)):
-            running_return += r * (discount_factor**i)
+            running_return = r + (discount_factor * running_return)
             returns.appendleft(running_return)
-        return list(returns)
+        return torch.tensor(returns, dtype=torch.float32)
 
     def calculate_policy_loss(
-        self, log_probs: List[float], returns: List[float], baseline_values: List[float]
+        self,
+        log_probs: torch.Tensor,
+        returns: torch.Tensor,
+        baseline_values: torch.Tensor,
     ) -> torch.Tensor:
         """
         Calculates the policy loss
 
         Args:
-            log_probs (List): the log probabilities of the actions
-            returns (List): the returns from the episode
-            baseline_values (List): the baseline values
+            log_probs (torch.Tensor): the log probabilities of the actions
+            returns (torch.Tensor): the returns from the episode
+            baseline_values (torch.Tensor): the baseline values
 
         Returns:
             torch.Tensor: the policy loss
         """
-        loss = torch.tensor(0, dtype=torch.float32, requires_grad=True)
-        for log_prob, r, b in zip(
-            torch.tensor(log_probs, dtype=torch.float32),
-            torch.tensor(returns, dtype=torch.float32),
-            torch.tensor(baseline_values, dtype=torch.float32),
-        ):
-            loss = loss - log_prob * (r - b)
+        loss = -torch.sum(log_probs * (returns - baseline_values.detach()))
         return loss
 
     def calculate_baseline_loss(
-        self, returns: List[float], baseline_values: List[float]
+        self, returns: torch.Tensor, baseline_values: torch.Tensor
     ) -> torch.Tensor:
         """
         Calculates the baseline loss
 
         Args:
-            returns (List): the returns from the episode
-            baseline_values (List): the baseline values
+            returns (torch.Tensor): the returns from the episode
+            baseline_values (torch.Tensor): the baseline values
 
         Returns:
             torch.Tensor: the baseline loss
         """
         loss_fn = nn.MSELoss()
-        b = torch.tensor(baseline_values, dtype=torch.float32)
-        r = torch.tensor(returns, dtype=torch.float32)
-        return loss_fn(b, r).requires_grad_(True)
+        return loss_fn(baseline_values, returns)
 
     def train(self, env: Env, num_episodes: int, verbose: bool = False) -> None:
         """
@@ -222,6 +217,13 @@ class PolicyGradientAgent:
 
             # Calculate the returns
             returns = self.calculate_return(rewards, self.discount_factor)
+
+            # Normalize the returns
+            returns = (returns - torch.mean(returns)) / (torch.std(returns) + 1e-8)
+
+            # Convert the lists to tensors
+            log_probs = torch.stack(log_probs).squeeze()
+            baseline_values = torch.stack(baseline_values).squeeze()
 
             # Calculate policy loss and backprop
             policy_optim.zero_grad()
