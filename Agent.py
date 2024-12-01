@@ -156,7 +156,7 @@ class PolicyGradientAgent:
             torch.Tensor: the policy loss
         """
         loss = -torch.sum(
-            log_probs * (returns - baseline_values.detach())
+            log_probs * (returns - baseline_values).detach()
         )  # detach the baseline values to prevent backpropagation through the baseline network
         return loss
 

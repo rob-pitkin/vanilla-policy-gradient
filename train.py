@@ -6,7 +6,7 @@ import gymnasium as gym
 def main():
     # TODO: add argparse to allow for command line arguments
     env = gym.make("CartPole-v1")
-    num_episodes = 100000
+    num_episodes = 10000
     agent = PolicyGradientAgent()
     agent.train(env, num_episodes, True)
     show_env = gym.make("CartPole-v1", render_mode="human")
