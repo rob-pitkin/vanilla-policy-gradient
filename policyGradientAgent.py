@@ -33,16 +33,17 @@ class PolicyNetwork(nn.Module):
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
         self.action_dim = action_dim
-        self.layers = []
+        layers = []
+        self.activation_fn = nn.Tanh() if activation == "tanh" else nn.ReLU()
         self.input_layer = nn.Linear(self.state_dim, self.hidden_dim)
-        self.layers.append(self.input_layer)
+        layers.append(self.input_layer)
+        layers.append(self.activation_fn)
         for _ in range(hidden_layers):
-            self.layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(self.activation_fn)
         self.output_layer = nn.Linear(self.hidden_dim, self.action_dim)
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "tanh":
-            self.activation = nn.Tanh()
+        layers.append(self.output_layer)
+        self.fc = nn.Sequential(*layers)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -55,10 +56,7 @@ class PolicyNetwork(nn.Module):
         Returns:
             torch.Tensor: the output probabilities of the actions
         """
-        for layer in self.layers:
-            x = layer(x)
-            x = self.activation(x)
-        x = self.output_layer(x)
+        x = self.fc(x)
         return self.softmax(x)
 
     def select_action(self, state: torch.Tensor) -> tuple[int, torch.Tensor]:
@@ -105,17 +103,17 @@ class BaselineNetwork(nn.Module):
         self.state_dim = state_dim
         self.value_dim = value_dim
         self.hidden_dim = hidden_dim
-        self.layers = []
+        layers = []
         self.input_layer = nn.Linear(self.state_dim, self.hidden_dim)
-        self.layers.append(self.input_layer)
+        self.activation_fn = nn.Tanh() if activation == "tanh" else nn.ReLU()
+        layers.append(self.input_layer)
+        layers.append(self.activation_fn)
         for _ in range(hidden_layers):
-            self.layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(self.activation_fn)
         self.output_layer = nn.Linear(self.hidden_dim, self.value_dim)
-        self.activation = None
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "tanh":
-            self.activation = nn.Tanh()
+        layers.append(self.output_layer)
+        self.fc = nn.Sequential(*layers)
 
     def forward(self, x) -> torch.Tensor:
         """
@@ -127,10 +125,7 @@ class BaselineNetwork(nn.Module):
         Returns:
             torch.Tensor: the value of the state
         """
-        for layer in self.layers:
-            x = layer(x)
-            x = self.activation(x)
-        x = self.output_layer(x)
+        x = self.fc(x)
         return x
 
 
@@ -168,19 +163,18 @@ class SharedNetwork(nn.Module):
         self.hidden_dim = hidden_dim
         self.action_dim = action_dim
         self.value_dim = value_dim
-        self.layers = []
+        layers = []
         self.input_layer = nn.Linear(self.state_dim, self.hidden_dim)
-        self.layers.append(self.input_layer)
+        self.activation_fn = nn.Tanh() if activation == "tanh" else nn.ReLU()
+        layers.append(self.input_layer)
+        layers.append(self.activation_fn)
         for _ in range(hidden_layers):
-            self.layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(nn.Linear(self.hidden_dim, self.hidden_dim))
+            layers.append(self.activation_fn)
+        self.fc = nn.Sequential(*layers)
         self.policy_head = nn.Linear(self.hidden_dim, self.action_dim)
         self.value_head = nn.Linear(self.hidden_dim, self.value_dim)
         self.softmax = nn.Softmax(dim=-1)
-        self.activation = None
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "tanh":
-            self.activation = nn.Tanh()
 
     def forward(self, x) -> None:
         """
@@ -193,9 +187,7 @@ class SharedNetwork(nn.Module):
             torch.Tensor: the output probabilities of the actions
             torch.Tensor: the value of the state
         """
-        for l in self.layers:
-            x = l(x)
-            x = self.activation(x)
+        x = self.fc(x)
         action_probs = self.softmax(self.policy_head(x))
         state_value = self.value_head(x)
         return action_probs, state_value
